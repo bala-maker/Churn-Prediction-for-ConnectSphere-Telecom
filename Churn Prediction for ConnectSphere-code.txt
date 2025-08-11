@@ -1,0 +1,85 @@
+# Churn Prediction for ConnectSphere Telecom
+# Author: Bala Ji Gautam
+# Description: ANN model for churn prediction using Pandas & Keras
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+
+# -------------------------
+# 1. Load the dataset
+# -------------------------
+# Replace 'telecom_churn.csv' with your actual dataset file
+df = pd.read_csv("telecom_churn.csv")
+
+print("First 5 rows of the dataset:")
+print(df.head())
+
+# -------------------------
+# 2. Basic preprocessing
+# -------------------------
+# Example assumption: 'Churn' column contains Yes/No or 1/0
+df['Churn'] = df['Churn'].map({'Yes': 1, 'No': 0})  # If it's already 1/0, skip this line
+
+# Handle missing values
+df.fillna(0, inplace=True)
+
+# Select features (adjust these according to your dataset)
+features = ['CallDuration', 'DataUsage', 'ContractLength']
+X = df[features]
+y = df['Churn']
+
+# -------------------------
+# 3. Train-test split
+# -------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# -------------------------
+# 4. Feature scaling
+# -------------------------
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# -------------------------
+# 5. Build the ANN model
+# -------------------------
+model = Sequential()
+model.add(Dense(32, activation='relu', input_shape=(X_train.shape[1],)))
+model.add(Dropout(0.2))
+model.add(Dense(16, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))  # Sigmoid for binary classification
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# -------------------------
+# 6. Train the model
+# -------------------------
+history = model.fit(X_train, y_train, epochs=50, batch_size=16, validation_split=0.2, verbose=1)
+
+# -------------------------
+# 7. Evaluate model
+# -------------------------
+y_pred_prob = model.predict(X_test)
+y_pred = (y_pred_prob > 0.5).astype(int)
+
+acc = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+
+print(f"\nModel Accuracy: {acc:.4f}")
+print(f"Model F1 Score: {f1:.4f}")
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# -------------------------
+# 8. List at-risk customers
+# -------------------------
+# Customers predicted as churners
+at_risk_customers = df.iloc[y_test.index][y_pred.flatten() == 1]
+at_risk_customers.to_csv("at_risk_customers.csv", index=False)
+print("\nAt-risk customers saved to 'at_risk_customers.csv'")
